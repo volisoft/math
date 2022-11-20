@@ -1,0 +1,137 @@
+#+title: chap4ex0
+#+LATEX_HEADER: \usepackage{CalcStyleV9}
+#+LaTeX_HEADER: \newcommand{\dd}{\,\mathrm{d}}
+#+LaTeX_HEADER: \newcommand{\ggll}{\mathrel{\substack{\ll\\[-.05em]\gg}}}
+# #+LaTeX_HEADER: \newcommand{\rnglb}[4]{\stackrel{\rem #4}{\stackrel{#3[}{\stackrel{#2|}{\rem #1}}}}
+#+LaTeX_HEADER: \newcommand{\rnglb}[4]{\stackrel{\stackrel{#4}{#3[}}{\stackrel{#2|}{#1}}}}
+#+LaTeX_HEADER: \newcommand{\rngbu}[3]{\stackrel{#3}{\stackrel{#2\lceil}{#1}}}
+#+LaTeX_HEADER: \newcommand{\rngb}[3]{\stackrel{#3}{\stackrel{#2[}{#1}}}
+
+
+* Problem
+#+begin_src
+|[ con N: int {N >= 1}; A: array[0..N) of int;
+   var r: int
+   S
+   {r = (max p,q: 0 <= p < q < N. A.p - A.q)}
+]|
+#+end_src
+
+* Develop invariant
+For invariant, replace constant N with n:
+\[ P_0: r = \uparrow \rnglb{_0}{p}{q}{n} A.p - A.q  \]
+\[ P_1: 1 \leq n \leq N \]
+In \(P_1 \) lower bound corresponds to the lowerbound of \(N\).
+
+Let \(d.a.b\) denote a function:
+\[D.a.b = A.a - A.b\]
+
+With following laws:
+\[ D.z.z = 0 \] (1)
+\[ D.p.q - D.p.r = D.r.q \] (2)
+
+Let \(L.q\) denote a function:
+\[ L.q = \uparrow \rngbu{_0}{p}{q} D.p.q \]
+
+Then rewrite \(P0\) as:
+\[ P_0: r = \uparrow \rngb{_0}{q}{n} \uparrow L.q \]
+
+To establish invariant select \(n = 1 \).
+
+#+begin_src latex
+  \begin{calc}
+         P_0 (n := 1)
+    \CalcStep{=}{Definition of P0 }
+         r = \uparrow \rngb{_0}{q}{1}. \uparrow L.q
+    \CalcStep{=}{Empty range}
+         r = -inf
+  \end{calc}
+#+end_src
+
+Bound function is \(t = N - n \). The obvious way to decrease \(t\) is to increase \(n\). Thus, we derive the following program:
+
+#+begin_src
+|[ con N: int {N >= 1}; A: array[0..N) of int;
+   var r:= -inf, n := 1
+   S
+   n := n + 1
+   {r = (max p,q: 0 <= p < q < N. A.p - A.q)}
+]|
+#+end_src
+
+Towards solving for \(S\) we calculate:
+
+#+begin_src latex
+  \begin{calc}
+         P_0 (n := n + 1)
+    \CalcStep{=}{Definition of P0 }
+         r = \uparrow \rngb{_0}{q}{n+1} \uparrow L.q
+    \CalcStep{=}{Split-off term}
+         r = (\uparrow \rngb{_0}{q}{n} L.q) \uparrow L.n
+    \CalcStep{=}{P0}
+         r = r \uparrow L.n
+    \CalcStep{=}{s = L.n (see below)}
+         r = r \uparrow L.n
+  \end{calc}
+#+end_src
+
+Equation \(s = L.n \) requires evaluating \(A.n \) which may be out of the array's boundary. Therefore, we introduce an alternative invariant:
+\[ P_2: s = L.(n-1) \]
+
+To establish \(s\) we calculate:
+
+#+begin_src latex
+  \begin{calc}
+         P_2 (n := 1)
+    \CalcStep{=}{Definition of P2, substitution }
+         s = L.0
+    \CalcStep{=}{Definition of L}
+         s = \uparrow \rngbu{_0}{p}{0} D.p.0
+    \CalcStep{=}{One-point rule... or empty range?}
+         s = D.0.0
+    \CalcStep{=}{(1)}
+         s = 0
+  \end{calc}
+#+end_src
+
+To establish \(P_2 (n := n + 1) \) we calculate:
+
+#+begin_src latex
+  \begin{calc}
+         P_2 (n := n + 1)
+    \CalcStep{=}{Definition of P2, substitution }
+         s = L.n
+    \CalcStep{=}{Definition of L}
+         s = \uparrow \rngbu{_0}{p}{n} D.p.n
+    \CalcStep{=}{Split-off term}
+         s = (\uparrow \rngbu{_0}{p}{n-1} D.p.n) \uparrow (D.(n-1).n)
+    \CalcStep{=}{See *}
+         s = (\uparrow \rngbu{_0}{p}{n-1} D.p.(n-1) + D.(n-1).n) \uparrow (D.(n-1).n)
+    \CalcStep{=}{+ distributes over max}
+         s = (D.(n-1).n + \uparrow \rngbu{_0}{p}{n-1} D.p.(n-1)) \uparrow (D.(n-1).n)
+    \CalcStep{=}{Definition of s}
+         s = (D.(n-1).n + s) \uparrow (D.(n-1).n)
+  \end{calc}
+#+end_src
+To justify *:
+#+begin_src latex
+  \begin{calc}
+         D.a.b = D.a.c + delta
+    \CalcStep{=}{Definition of D}
+         A.a - A.b = A.a - A.c + delta
+    \CalcStep{=}{Arithmetic}
+         A.c - A.b = delta
+    \CalcStep{=}{Definition of D}
+         D.c.b = delta
+  \end{calc}
+#+end_src
+We arrive at the following program:
+#+begin_src
+|[ con N: int {N >= 1}; A: array[0..N) of int;
+   var r:= -inf, n := 1
+   s := max((A.(n-1) - A.n) + s, (A.(n-1) - A.n))
+   r := max(r, s)
+   n := n + 1
+   {r = (max p,q: 0 <= p < q < N. A.p - A.q)}
+]|
+#+end_src
